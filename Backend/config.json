@@ -1,0 +1,67 @@
+{
+  "system": {
+    "name": "Campus Hybrid Renewable Energy Management",
+    "version": "1.0.0",
+    "location": "Rajasthan Public Sector Campus"
+  },
+  "ga_parameters": {
+    "population_size": 40,
+    "generations": 100,
+    "mutation_rate": 0.2,
+    "elite_percentage": 0.3
+  },
+  "energy_resources": {
+    "solar": {
+      "max_capacity_kw": 100,
+      "min_generation_kw": 0,
+      "forecast_accuracy": 0.85,
+      "carbon_emissions_kg_per_kwh": 0,
+      "operational_cost_per_kwh": 0
+    },
+    "wind": {
+      "max_capacity_kw": 50,
+      "min_generation_kw": 0,
+      "forecast_accuracy": 0.7,
+      "carbon_emissions_kg_per_kwh": 0,
+      "operational_cost_per_kwh": 0
+    },
+    "battery": {
+      "max_storage_kwh": 30,
+      "charge_efficiency": 0.95,
+      "discharge_efficiency": 0.95,
+      "max_charge_rate_kw": 20,
+      "max_discharge_rate_kw": 20,
+      "carbon_emissions_kg_per_kwh": 0.05
+    },
+    "grid": {
+      "carbon_emissions_kg_per_kwh": 0.75,
+      "cost_per_kwh_rs": 6.0,
+      "reliability": 1.0
+    }
+  },
+  "alert_thresholds": {
+    "renewable_percentage_min": 40,
+    "grid_cost_max_per_hour_rs": 50,
+    "battery_charge_min_percent": 20,
+    "battery_charge_max_percent": 95,
+    "system_efficiency_min_percent": 80
+  },
+  "forecast": {
+    "hours_ahead": 24,
+    "update_interval_minutes": 15,
+    "cloud_cover_avg_percent": 20,
+    "wind_speed_avg_ms": 5
+  },
+  "database": {
+    "type": "sqlite",
+    "file": "hybrid_energy.db",
+    "backup_interval_hours": 24,
+    "retention_days": 365
+  },
+  "api": {
+    "host": "127.0.0.1",
+    "port": 5000,
+    "debug": true,
+    "cors_enabled": true
+  }
+}

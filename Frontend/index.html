@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Campus Hybrid Energy Management System</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+</head>
+<body>
+
+<!-- Navigation Bar -->
+<nav class="navbar">
+    <div class="navbar-content">
+        <h1 class="logo">⚡ Campus Hybrid Energy</h1>
+        <div class="nav-links">
+            <button class="nav-btn active" onclick="switchTab('dashboard')">Dashboard</button>
+            <button class="nav-btn" onclick="switchTab('forecast')">24h Forecast</button>
+            <button class="nav-btn" onclick="switchTab('optimizer')">Optimizer</button>
+            <button class="nav-btn" onclick="switchTab('analytics')">Analytics</button>
+            <button class="nav-btn" onclick="switchTab('alerts')">Alerts</button>
+        </div>
+    </div>
+</nav>
+
+<!-- Main Container -->
+<div class="main-container">
+
+    <!-- ========== DASHBOARD TAB ========== -->
+    <div id="dashboard" class="tab-content active">
+        <h2>System Overview</h2>
+        
+        <!-- Status Cards -->
+        <div class="status-grid">
+            <div class="status-card">
+                <div class="icon">☀️</div>
+                <h3>Solar Power</h3>
+                <p class="big-value" id="solar-current">-- kW</p>
+                <p class="sub-text">Current Generation</p>
+            </div>
+            <div class="status-card">
+                <div class="icon">💨</div>
+                <h3>Wind Power</h3>
+                <p class="big-value" id="wind-current">-- kW</p>
+                <p class="sub-text">Current Generation</p>
+            </div>
+            <div class="status-card">
+                <div class="icon">🔋</div>
+                <h3>Battery Storage</h3>
+                <p class="big-value" id="battery-current">-- %</p>
+                <p class="sub-text">Charge Level</p>
+            </div>
+            <div class="status-card">
+                <div class="icon">🔌</div>
+                <h3>Grid Import</h3>
+                <p class="big-value" id="grid-current">-- kW</p>
+                <p class="sub-text">Current Draw</p>
+            </div>
+            <div class="status-card">
+                <div class="icon">📊</div>
+                <h3>Total Demand</h3>
+                <p class="big-value" id="demand-current">-- kW</p>
+                <p class="sub-text">Campus Load</p>
+            </div>
+            <div class="status-card">
+                <div class="icon">♻️</div>
+                <h3>Renewable Share</h3>
+                <p class="big-value" id="renewable-percent">-- %</p>
+                <p class="sub-text">of Total Supply</p>
+            </div>
+        </div>
+
+        <!-- Real-time Chart -->
+        <div class="chart-container">
+            <h3>Real-time Energy Flow (Last 10 Updates)</h3>
+            <canvas id="realtimeChart"></canvas>
+        </div>
+
+        <!-- Recommendations -->
+        <div class="recommendations-box">
+            <h3>⚠️ System Recommendations</h3>
+            <div id="recommendations-content">
+                <p style="color: #999;">Loading recommendations...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== FORECAST TAB ========== -->
+    <div id="forecast" class="tab-content">
+        <h2>24-Hour Energy Forecast</h2>
+        
+        <div class="forecast-params">
+            <input id="forecast-solar" type="number" placeholder="Max Solar Capacity (kW)" min="0" value="100" style="width: 20%; margin-right: 10px;">
+            <input id="forecast-wind" type="number" placeholder="Max Wind Capacity (kW)" min="0" value="50" style="width: 20%; margin-right: 10px;">
+            <input id="forecast-demand" type="number" placeholder="Average Demand (kW)" min="0" value="60" style="width: 20%; margin-right: 10px;">
+            <button onclick="loadForecast()" style="width: 20%;">Load Forecast</button>
+        </div>
+
+        <div class="chart-container">
+            <h3>Generation & Demand Forecast</h3>
+            <canvas id="forecastChart"></canvas>
+        </div>
+
+        <div class="chart-container">
+            <h3>Surplus/Deficit Analysis</h3>
+            <canvas id="surplusChart"></canvas>
+        </div>
+    </div>
+
+    <!-- ========== OPTIMIZER TAB ========== -->
+    <div id="optimizer" class="tab-content">
+        <h2>Energy Optimization</h2>
+        
+        <div class="optimizer-panel">
+            <div class="input-section">
+                <h3>📥 Available Resources</h3>
+                <input id="solar" type="number" placeholder="Solar Max (kW)" min="0" value="100">
+                <input id="wind" type="number" placeholder="Wind Max (kW)" min="0" value="50">
+                <input id="battery" type="number" placeholder="Battery Storage (kW)" min="0" value="30">
+                
+                <h3 style="margin-top: 20px;">⚙️ Settings</h3>
+                <input id="demand" type="number" placeholder="Total Demand (kW)" min="0.1" value="60">
+                <input id="gridCost" type="number" placeholder="Grid Cost (₹/kWh)" min="0.1" value="6">
+                <input id="batteryCharge" type="number" placeholder="Battery Charge Level (%)" min="0" max="100" value="50">
+                
+                <button onclick="optimize()" class="optimize-btn">🔄 Run Optimization</button>
+            </div>
+
+            <div class="result-section">
+                <h3>Optimization Results</h3>
+                <div id="result" class="result-box">
+                    <p style="color:#999;">Results will appear here after optimization</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== ANALYTICS TAB ========== -->
+    <div id="analytics" class="tab-content">
+        <h2>Historical Analytics & Reporting</h2>
+        
+        <div class="analytics-controls">
+            <label>Period: 
+                <select id="analytics-period" onchange="loadAnalytics()">
+                    <option value="24">Last 24 Hours</option>
+                    <option value="168">Last 7 Days</option>
+                    <option value="720">Last 30 Days</option>
+                </select>
+            </label>
+            <button onclick="exportReport()">📥 Export Report (CSV)</button>
+        </div>
+
+        <div class="analytics-grid">
+            <div class="analytics-card">
+                <h4>Total Renewable Energy</h4>
+                <p class="metric" id="metric-renewable">-- kWh</p>
+            </div>
+            <div class="analytics-card">
+                <h4>Total Grid Energy</h4>
+                <p class="metric" id="metric-grid">-- kWh</p>
+            </div>
+            <div class="analytics-card">
+                <h4>Energy Cost Saved</h4>
+                <p class="metric" id="metric-cost">-- ₹</p>
+            </div>
+            <div class="analytics-card">
+                <h4>CO₂ Emissions Avoided</h4>
+                <p class="metric" id="metric-emissions">-- kg CO₂</p>
+            </div>
+        </div>
+
+        <div class="chart-container">
+            <h3>Cost & Emissions Trends</h3>
+            <canvas id="analyticsChart"></canvas>
+        </div>
+
+        <div class="chart-container">
+            <h3>Energy Distribution</h3>
+            <canvas id="energyDistributionChart"></canvas>
+        </div>
+    </div>
+
+    <!-- ========== ALERTS TAB ========== -->
+    <div id="alerts" class="tab-content">
+        <h2>System Alerts & Notifications</h2>
+        
+        <div class="alerts-controls">
+            <button onclick="loadAlerts()">🔄 Refresh Alerts</button>
+            <label>Show last:
+                <select onchange="loadAlerts(this.value)" id="alert-period">
+                    <option value="24">24 Hours</option>
+                    <option value="7">7 Days</option>
+                </select>
+            </label>
+        </div>
+
+        <div id="alerts-container" class="alerts-list">
+            <p style="color: #999;">Loading alerts...</p>
+        </div>
+
+        <div class="alert-config-box">
+            <h3>Configure Alert Thresholds</h3>
+            <div class="alert-threshold-grid">
+                <div>
+                    <label>Min Renewable %:</label>
+                    <input id="threshold-renewable" type="number" min="0" max="100" value="40" style="width: 80px;">
+                </div>
+                <div>
+                    <label>Max Grid Cost (₹/h):</label>
+                    <input id="threshold-cost" type="number" min="0" value="50" style="width: 80px;">
+                </div>
+                <div>
+                    <label>Min Battery %:</label>
+                    <input id="threshold-battery" type="number" min="0" max="100" value="20" style="width: 80px;">
+                </div>
+                <div>
+                    <button onclick="saveThresholds()">💾 Save Thresholds</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
