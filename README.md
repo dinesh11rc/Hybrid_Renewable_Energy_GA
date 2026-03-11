@@ -2,14 +2,19 @@
 
 A comprehensive software platform for orchestrating solar, wind, battery storage, and grid power at educational campuses across Rajasthan and beyond.
 
-## 🎯 Problem Statement
+## 🎯 Core Problem Definition
 
-Public-sector campuses in Rajasthan have favorable solar irradiance and wind potential, yet separate renewable installations operate independently without coordination. This leads to:
-- Inefficient energy utilization
-- Inability to guarantee stable power
-- Manual facilities management
-- Lack of carbon savings transparency
-- Missed opportunities for load shifting
+**Problem:** 
+Urban buildings and campuses use electricity from multiple sources (solar, wind, battery, grid), but they do not know the best way to distribute energy to reduce grid dependence and cost.
+
+**Goal of the System:**
+- Maximize renewable energy usage
+- Minimize grid electricity
+- Reduce cost
+- Reduce carbon emissions
+
+**System Definition:**
+An intelligent decision-support system for hybrid renewable energy optimization.
 
 ## ✨ Solution Features
 

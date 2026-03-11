@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./Backend
+    container_name: hybrid_energy_backend
+    restart: always
+    volumes:
+      - ./Backend/hybrid_energy.db:/app/hybrid_energy.db
+      - ./Backend/sensor_readings.csv:/app/sensor_readings.csv
+    expose:
+      - "5000"
+
+  frontend:
+    image: nginx:alpine
+    container_name: hybrid_energy_frontend
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Frontend:/usr/share/nginx/html
+      - ./Frontend/nginx.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - backend

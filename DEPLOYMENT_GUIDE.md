@@ -211,28 +211,28 @@ app.run(debug=True, host='127.0.0.1', port=5000)
 - ✓ Slower performance
 - ✗ Not suitable for production
 
-### Production Deployment
+### Production Deployment (Recommended)
 
-**On Linux/Cloud Server:**
+The platform is fully configured to run via **Docker Compose**. This ensures that both the Python Machine Learning API and the Nginx Frontend webserver spin up as a resilient, self-contained unit on any cloud provider (AWS, Azure, DigitalOcean).
+
+**Prerequisites:**
+- Docker and Docker Compose installed on your host system.
+
+**Deployment Steps:**
 ```bash
-# Install WSGI server
-pip install gunicorn
+# 1. Navigate to the project root directory
+cd /path/to/Hybrid_Energy-GA
 
-# Run with Gunicorn
-gunicorn -w 4 -b 0.0.0.0:5000 server:app
+# 2. Build and start the orchestration cluster in detached mode
+docker-compose up --build -d
 
-# With reverse proxy (nginx):
-# Configure nginx to forward to localhost:5000
-# Enable HTTPS/SSL certificate
+# 3. Check logs to ensure successful startup
+docker-compose logs -f
 ```
 
-**Modify server.py for production:**
-```python
-if __name__ == "__main__":
-    import os
-    debug_mode = os.environ.get('FLASK_ENV', 'production') == 'development'
-    app.run(debug=debug_mode, host='0.0.0.0', port=5000)
-```
+**Architecture:**
+- **Frontend Container (Nginx)**: Serves static assets gracefully on port 80 and auto-proxies any network requests destined for `/api/` directly to the backend layer.
+- **Backend Container (Python/Gunicorn)**: Executes the `scikit-learn` forecasting models and Genetic Algorithms using 4 dedicated WSGI workers, completely isolated from public internet access.
 
 ---
 

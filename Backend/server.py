@@ -8,8 +8,20 @@ from datetime import datetime, timedelta
 import math
 from pathlib import Path
 
+from predictive_model import PredictiveModel
+from auto_optimize import AutoOptimizer
+
 app = Flask(__name__)
 CORS(app)
+
+# ========== LIVE DATA INTEGRATION LAYER ==========
+# The system treats all energy sources as a unified Virtual Power Plant (VPP).
+# Supported open interfaces for Real-Time Data Ingestion:
+# 1. REST APIs (Current implementation via /sensor-data endpoint)
+# 2. MQTT (Abstract connector - connect to brokers like Mosquitto)
+# 3. Modbus TCP/RTU (Abstract connector - for industrial solar/wind controllers)
+# 4. CSV Adapters (Abstract connector - for batch imports)
+# =================================================
 
 # ========== CONFIGURATION ==========
 POP_SIZE = 40
@@ -133,8 +145,9 @@ def mutate(chromosome, solar_avail, wind_avail, battery_cap, demand, mutation_ra
     return chromosome
 
 def genetic_algorithm_optimize(solar_avail, wind_avail, battery_cap, demand, grid_cost):
-    """Execute GA optimization"""
+    """Execute GA optimization and return best solution and evolution history"""
     population = create_population(solar_avail, wind_avail, battery_cap, demand)
+    evolution_history = []
     
     for generation in range(GENERATIONS):
         # Evaluate fitness
@@ -157,10 +170,14 @@ def genetic_algorithm_optimize(solar_avail, wind_avail, battery_cap, demand, gri
             new_population.append(child)
         
         population = new_population
+        
+        # Record best fitness of the current population
+        best_current_fitness = min(fitness(ind, grid_cost, demand, battery_cap) for ind in population)
+        evolution_history.append({"generation": generation + 1, "cost": round(best_current_fitness, 2)})
     
-    # Return best solution
+    # Return best solution and evolution history
     population.sort(key=lambda x: fitness(x, grid_cost, demand, battery_cap))
-    return population[0]
+    return population[0], evolution_history
 
 # ========== FORECASTING MODULE ==========
 def forecast_demand(hour_of_day, day_of_week, current_demand, historical_avg):
@@ -218,6 +235,60 @@ def health():
     """Health check endpoint"""
     return jsonify({"status": "running", "timestamp": datetime.now().isoformat()})
 
+@app.route("/optimize-schedule", methods=["GET"])
+def optimize_schedule():
+    """
+    Predictive Optimization Engine: 
+    Forecasts the next 24 hours and optimizes energy usage across time slots.
+    """
+    try:
+        battery_charge_percent = float(request.args.get('batteryCharge', 50))
+        grid_cost = float(request.args.get('gridCost', 6))
+        scenario_type = request.args.get('scenario', 'normal')
+        
+        predictor = PredictiveModel(DB_FILE)
+        forecast_data = predictor.generate_forecast(hours_ahead=24, scenario=scenario_type)
+        
+        if not forecast_data or all(f['demand_forecast'] == 0 for f in forecast_data):
+            return jsonify({"error": "Insufficient historical data for predictive scheduling"}), 400
+            
+        schedule = []
+        current_battery = battery_charge_percent
+        
+        for hour_data in forecast_data:
+            solar_avail = hour_data['solar_forecast']
+            wind_avail = hour_data['wind_forecast']
+            demand = hour_data['demand_forecast']
+            
+            # Assume 100 max capacity for schedule math if not strictly tracked via simulation
+            battery_cap = 100.0 
+            
+            best_solution, _ = genetic_algorithm_optimize(solar_avail, wind_avail, battery_cap, demand, grid_cost)
+            solar_use, wind_use, battery_use, grid_use = best_solution
+            
+            if battery_use > battery_cap * 0.1:
+                b_action = "discharge"
+            elif current_battery < 80 and solar_avail + wind_avail > demand:
+                b_action = "charge"
+            else:
+                b_action = "idle"
+                
+            schedule.append({
+                "time": f"{hour_data['hour']:02d}:00",
+                "solar": round(solar_use, 2),
+                "wind": round(wind_use, 2),
+                "battery_action": b_action,
+                "grid": round(grid_use, 2)
+            })
+            
+        return jsonify({
+            "generated_at": datetime.now().isoformat(),
+            "schedule": schedule
+        })
+        
+    except Exception as e:
+        return jsonify({"error": f"Schedule optimization error: {str(e)}"}), 500
+
 @app.route("/optimize", methods=["POST"])
 def optimize():
     """
@@ -247,7 +318,7 @@ def optimize():
             return jsonify({"error": "Energy values cannot be negative"}), 400
         
         # Run optimization
-        best_solution = genetic_algorithm_optimize(solar_avail, wind_avail, battery_cap, demand, grid_cost)
+        best_solution, evolution_history = genetic_algorithm_optimize(solar_avail, wind_avail, battery_cap, demand, grid_cost)
         solar_use, wind_use, battery_use, grid_use = best_solution
         
         # Calculate metrics
@@ -256,13 +327,37 @@ def optimize():
         total_cost = grid_use * grid_cost
         emissions_avoided = (renewable_total * (CARBON_FACTOR_GRID - 0)) / 1000  # kg CO2
         
-        # Determine battery action
+        # Determine battery action and reasoning
+        battery_action = "idle"
+        reasoning = []
+        
+        if solar_use > 0:
+            if solar_avail >= demand * 0.5:
+                reasoning.append("☀️ Solar generation high → maximizing solar energy utilization.")
+            else:
+                reasoning.append("☀️ Utilizing available solar energy to offset grid demand.")
+                
+        if wind_use > 0:
+             reasoning.append("💨 Wind output available → including wind in supply mix.")
+             
         if battery_use > battery_cap * 0.1:
             battery_action = "discharge"
-        elif battery_charge_percent < 30:
+            reasoning.append("🔋 Battery level sufficient → discharging battery to reduce grid usage.")
+        elif battery_charge_percent < 30 and solar_avail + wind_avail > demand:
             battery_action = "charge"
+            reasoning.append("🔋 Battery charge low & renewable surplus → charging battery for future use.")
         else:
             battery_action = "idle"
+            
+        if grid_use > 0:
+            if grid_cost > 5:
+                reasoning.append("🔌 Grid tariff high → minimizing grid import through optimal allocation.")
+            else:
+                reasoning.append(f"🔌 Renewables insufficient → importing {round(grid_use, 2)} kW from grid to meet demand.")
+
+        # Cost without optimization
+        cost_without_optimization = demand * grid_cost
+        savings = max(0, cost_without_optimization - total_cost)
         
         # Log to database
         conn = sqlite3.connect(DB_FILE)
@@ -281,10 +376,14 @@ def optimize():
             "battery_action": battery_action,
             "grid": round(grid_use, 2),
             "cost": round(total_cost, 2),
+            "cost_without_optimization": round(cost_without_optimization, 2),
+            "savings": round(savings, 2),
             "renewable_percent": round(renewable_percent, 2),
             "total_renewable": round(renewable_total, 2),
             "demand_met": round(renewable_total + grid_use, 2),
             "emissions_avoided_kg": round(emissions_avoided, 2),
+            "evolution_history": evolution_history,
+            "reasoning": reasoning,
             "timestamp": datetime.now().isoformat()
         })
     
@@ -297,33 +396,41 @@ def optimize():
 def get_forecast():
     """
     Get 24-hour ahead forecast for generation and demand
+    Uses the Live Data Predictive Model natively, and falls back to heuristics if newly setup.
     """
     try:
         solar_max = float(request.args.get('solar_max', 100))
         wind_max = float(request.args.get('wind_max', 50))
         demand_avg = float(request.args.get('demand_avg', 60))
+        scenario_type = request.args.get('scenario', 'normal')
         
-        now = datetime.now()
-        forecast_data = []
+        # 1. Attempt using Live Data Predictive Model
+        predictor = PredictiveModel(DB_FILE)
+        forecast_data = predictor.generate_forecast(hours_ahead=24, scenario=scenario_type)
         
-        for hour in range(24):
-            forecast_time = now + timedelta(hours=hour)
-            hour_of_day = forecast_time.hour
-            day_of_week = forecast_time.weekday()
+        # 2. Fallback to heuristic curves if insufficient historical data
+        if not forecast_data or all(f['demand_forecast'] == 0 for f in forecast_data):
+            now = datetime.now()
+            forecast_data = []
             
-            solar_gen = forecast_solar(hour_of_day, cloud_cover=20, max_solar=solar_max)
-            wind_gen = forecast_wind(hour_of_day, wind_speed_avg=5, max_wind=wind_max)
-            demand_pred = forecast_demand(hour_of_day, day_of_week, demand_avg, demand_avg)
-            
-            forecast_data.append({
-                "hour": hour_of_day,
-                "timestamp": forecast_time.isoformat(),
-                "solar_forecast": round(solar_gen, 2),
-                "wind_forecast": round(wind_gen, 2),
-                "renewable_total": round(solar_gen + wind_gen, 2),
-                "demand_forecast": round(demand_pred, 2),
-                "surplus_deficit": round((solar_gen + wind_gen - demand_pred), 2)
-            })
+            for hour in range(24):
+                forecast_time = now + timedelta(hours=hour)
+                hour_of_day = forecast_time.hour
+                day_of_week = forecast_time.weekday()
+                
+                solar_gen = forecast_solar(hour_of_day, cloud_cover=20, max_solar=solar_max)
+                wind_gen = forecast_wind(hour_of_day, wind_speed_avg=5, max_wind=wind_max)
+                demand_pred = forecast_demand(hour_of_day, day_of_week, demand_avg, demand_avg)
+                
+                forecast_data.append({
+                    "hour": hour_of_day,
+                    "timestamp": forecast_time.isoformat(),
+                    "solar_forecast": round(solar_gen, 2),
+                    "wind_forecast": round(wind_gen, 2),
+                    "renewable_total": round(solar_gen + wind_gen, 2),
+                    "demand_forecast": round(demand_pred, 2),
+                    "surplus_deficit": round((solar_gen + wind_gen - demand_pred), 2)
+                })
         
         return jsonify({
             "forecast_period": "24_hours",
@@ -333,6 +440,73 @@ def get_forecast():
     
     except Exception as e:
         return jsonify({"error": f"Forecast error: {str(e)}"}), 500
+
+@app.route("/model-metrics", methods=["GET"])
+def get_model_metrics():
+    """
+    Returns the MAE and RMSE accuracy evaluations of the Machine Learning models.
+    """
+    try:
+        predictor = PredictiveModel(DB_FILE)
+        metrics = predictor.get_metrics()
+        return jsonify({
+            "generated_at": datetime.now().isoformat(),
+            "metrics": metrics
+        })
+    except Exception as e:
+        return jsonify({"error": f"Error calculating metrics: {str(e)}"}), 500
+
+@app.route("/current-status", methods=["GET"])
+def get_current_status():
+    """Get latest system status (simulated real-time if no sensors)"""
+    try:
+        # Try to get latest reading from DB
+        conn = sqlite3.connect(DB_FILE)
+        conn.row_factory = sqlite3.Row
+        c = conn.cursor()
+        c.execute('SELECT * FROM sensor_readings ORDER BY timestamp DESC LIMIT 1')
+        row = c.fetchone()
+        conn.close()
+        
+        if row:
+            return jsonify(dict(row))
+        else:
+            # Generate realistic simulation based on time
+            now = datetime.now()
+            hour = now.hour
+            
+            # Solar (peaks at noon)
+            if 6 <= hour <= 18:
+                solar = 40 * math.sin((hour - 6) * math.pi / 12) + random.uniform(-2, 2)
+                solar = max(0, solar)
+            else:
+                solar = 0
+                
+            # Wind (random but consistent)
+            wind = random.uniform(5, 25)
+            
+            # Demand (peaks morning/evening)
+            base_demand = 40
+            if 8 <= hour <= 11 or 18 <= hour <= 22:
+                demand = base_demand * 1.5 + random.uniform(-5, 5)
+            else:
+                demand = base_demand + random.uniform(-5, 5)
+            
+            grid = max(0, demand - (solar + wind))
+            battery = 50 + math.sin(hour * math.pi / 12) * 20  # Cycles 30-70%
+            
+            return jsonify({
+                "solar_generation": round(solar, 2),
+                "wind_generation": round(wind, 2),
+                "battery_charge": round(battery, 1),
+                "grid_import": round(grid, 2),
+                "total_demand": round(demand, 2),
+                "grid_cost": 6.0,
+                "timestamp": now.isoformat()
+            })
+            
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route("/sensor-data", methods=["POST"])
 def record_sensor_data():
@@ -513,6 +687,38 @@ def export_report():
                                 log['battery_action'], log['grid_expected'], log['total_cost'], log['emissions_avoided']])
             
             return output.getvalue(), 200, {'Content-Type': 'text/csv', 'Content-Disposition': 'attachment; filename=energy_report.csv'}
+        elif format_type == 'pdf':
+            # Return HTML optimized for printing a PDF
+            html_content = f"""
+            <html>
+            <head>
+                <title>Energy Sustainability Report</title>
+                <style>
+                    body {{ font-family: Arial, sans-serif; padding: 40px; color: #333; }}
+                    h1 {{ color: #2c3e50; }}
+                    .summary-box {{ background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px; }}
+                    table {{ width: 100%; border-collapse: collapse; margin-top: 20px; }}
+                    th, td {{ border: 1px solid #ddd; padding: 8px; text-align: left; }}
+                    th {{ background-color: #f2f2f2; }}
+                </style>
+            </head>
+            <body onload="window.print()">
+                <h1>🌍 Energy Sustainability & Carbon Report</h1>
+                <p><strong>Generated:</strong> {report['report_generated']}</p>
+                <p><strong>Period:</strong> Last {report['period_days']} Days</p>
+                
+                <div class="summary-box">
+                    <h2>Executive Summary</h2>
+                    <p><strong>Total Renewable Utilization:</strong> {report['summary']['total_renewable_energy_kwh']} kWh</p>
+                    <p><strong>Total Grid Draw:</strong> {report['summary']['total_grid_energy_kwh']} kWh</p>
+                    <p><strong>Total Cost Saved:</strong> ₹{report['summary']['total_cost_kwh']}</p>
+                    <p><strong>Carbon Emissions Avoided:</strong> {report['summary']['total_emissions_avoided_kg_co2']} kg CO₂</p>
+                    <p><strong>Renewable Share:</strong> {report['summary']['renewable_percentage']}%</p>
+                </div>
+            </body>
+            </html>
+            """
+            return html_content, 200, {'Content-Type': 'text/html'}
         else:
             return jsonify(report)
     
@@ -520,7 +726,13 @@ def export_report():
         return jsonify({"error": f"Report error: {str(e)}"}), 500
 
 if __name__ == "__main__":
-    print("🔋 Hybrid Energy Management System - Backend Started")
-    print("📊 Database initialized at:", DB_FILE)
-    print("🌐 Server running on http://127.0.0.1:5000")
-    app.run(debug=True, host='127.0.0.1', port=5000)
+    print("[+] Hybrid Energy Management System - Backend Started")
+    print("[+] Database initialized at:", DB_FILE)
+    
+    # Start the automated optimizer thread
+    optimizer_thread = AutoOptimizer(api_url="http://127.0.0.1:5000", db_file=DB_FILE, interval_minutes=1)
+    optimizer_thread.start()
+    
+    print("[+] Auto-Optimizer Started (Runs every 1 minute on predictions)")
+    print("[+] Server running on http://127.0.0.1:5000")
+    app.run(debug=True, host='127.0.0.1', port=5000, use_reloader=False)
