@@ -365,9 +365,7 @@ Developed for SIH (Smart India Hackathon)
 ## 📧 Contact
 
 For deployment help or customization:
-- Email: [your-email@campus.ac.in]
-- GitHub Issues: [your-repo-url]
-- WhatsApp: [emergency support]
+- Email: [dinesh11rc@gmail.com]
 
 ---
 
