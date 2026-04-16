@@ -1,4 +1,4 @@
-# Campus Hybrid Renewable Energy Orchestration Platform (Virtual Power Plant)
+#  Hybrid Renewable Energy Optimaization Platform (Virtual Power Plant)
 
 A comprehensive vendor-neutral software framework for orchestrating solar, wind, battery storage, and grid power at public-sector educational campuses across Rajasthan and beyond.
 
