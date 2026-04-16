@@ -99,7 +99,7 @@ class PredictiveModel:
             self.train_models()
         return self.metrics
 
-    def generate_forecast(self, hours_ahead=24, scenario="normal"):
+    def generate_forecast(self, hours_ahead=24, scenario="normal", region_type="Individual House"):
         """
         Generate a forecast using the trained ML models.
         scenario: "normal", "cloudy", "windy", "peak_demand"
@@ -145,6 +145,23 @@ class PredictiveModel:
             wind_preds = wind_preds * 1.5    # Increase by 50%
         elif scenario == "peak_demand":
             demand_preds = demand_preds * 1.25 # Increase by 25%
+        
+        # Apply Region Modifiers
+        for i in range(hours_ahead):
+            hour = future_data[i]['hour']
+            is_weekend = future_data[i]['day_of_week'] >= 5
+            
+            # Modify demand pattern by region over the ML baseline
+            if region_type == 'Hospital':
+                demand_preds[i] *= 1.5
+            elif region_type == 'Apartment Complex':
+                if 17 <= hour <= 22:
+                    demand_preds[i] *= 1.3
+            elif region_type == 'Smart Campus':
+                if is_weekend:
+                    demand_preds[i] *= 0.3
+                elif 9 <= hour <= 16:
+                    demand_preds[i] *= 1.4
         
         for i in range(hours_ahead):
             s = max(0, solar_preds[i])

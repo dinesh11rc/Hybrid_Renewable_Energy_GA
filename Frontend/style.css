@@ -511,3 +511,72 @@ h1, h2, h3, h4, h5, h6 {
     .analytics-controls { flex-direction: column; width: 100%; }
     .analytics-controls > * { width: 100%; }
 }
+/* User Friendly UI Updates */
+.progress-bar {
+    width: 100%;
+    height: 12px;
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    overflow: hidden;
+}
+.progress-fill {
+    height: 100%;
+    border-radius: 6px;
+    transition: width 1s ease-in-out;
+}
+.status-green { background-color: #2ecc71; box-shadow: 0 0 10px rgba(46, 204, 113, 0.5); }
+.status-yellow { background-color: #f1c40f; box-shadow: 0 0 10px rgba(241, 196, 15, 0.5); }
+.status-red { background-color: #e74c3c; box-shadow: 0 0 10px rgba(231, 76, 60, 0.5); }
+
+/* Spacing and readable sizes for mobile */
+@media (max-width: 768px) {
+    .form-grid {
+        grid-template-columns: 1fr !important;
+    }
+    .status-grid {
+        grid-template-columns: 1fr !important;
+    }
+    .navbar-content {
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 10px;
+    }
+    .region-selector {
+        margin-left: 0 !important;
+        margin-top: 15px;
+        align-items: flex-start !important;
+        width: 100%;
+    }
+    .region-selector select {
+        width: 100%;
+    }
+    .region-selector p {
+        text-align: left !important;
+        margin-bottom: 10px;
+    }
+    .nav-links {
+        flex-wrap: wrap;
+        margin-top: 10px;
+        gap: 5px;
+    }
+    .nav-btn {
+        flex: 1;
+        text-align: center;
+        padding: 10px;
+        min-width: 80px;
+    }
+    button {
+        padding: 15px 20px !important;
+        font-size: 1.1em !important;
+        width: 100%;
+    }
+    .optimizer-details-grid {
+        grid-template-columns: 1fr !important;
+    }
+    .analytics-charts-split {
+        flex-direction: column !important;
+    }
+    .width-65, .width-35 {
+        width: 100% !important;
+    }
+}

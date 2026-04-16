@@ -199,23 +199,23 @@ function generateRecommendations(solar, wind, battery, renewable) {
     const renewableNum = parseFloat(renewable);
 
     if (renewableNum < 40) {
-        recommendations.push('⚠️ Low renewable generation - Consider shifting loads or charging battery during peak hours<br><small style="color:#2ecc71;">Expected Grid Reduction: ~15%</small>');
+        recommendations.push('⚠️ Low clean energy right now. Try to use heavy appliances later.<br><small style="color:#2ecc71;">Can lower your bill by ~15%</small>');
     }
 
     if (renewableNum > 80) {
-        recommendations.push('✅ Excellent renewable generation - Good opportunity to charge battery and schedule energy-intensive tasks<br><small style="color:#2ecc71;">Expected Cost Savings: High</small>');
+        recommendations.push('✅ Excellent clean energy! Great time to run washing machines or charge devices.<br><small style="color:#2ecc71;">High savings expected</small>');
     }
 
     if (parseFloat(battery) < 30) {
-        recommendations.push('🔋 Battery low - Recommended to charge immediately when renewable available<br><small style="color:#2ecc71;">Expected Emission Reduction: ~10%</small>');
+        recommendations.push('🔋 Battery is low. We recommend charging it when the sun is out.<br><small style="color:#2ecc71;">Good for the environment</small>');
     }
 
     if (parseFloat(battery) > 90) {
-        recommendations.push('📊 Battery nearly full - Consider using stored energy for evening peak load shifting<br><small style="color:#2ecc71;">Expected Grid Reduction: ~20%</small>');
+        recommendations.push('📊 Battery is almost full! Use it tonight to avoid grid prices.<br><small style="color:#2ecc71;">Great job saving power</small>');
     }
 
     if (recommendations.length === 0) {
-        recommendations.push('✓ System operating optimally - Continue monitoring');
+        recommendations.push('✓ Your home is running perfectly. Keep it up!');
     }
 
     const content = document.getElementById('recommendations-content');
@@ -231,6 +231,8 @@ async function optimize() {
     const batteryVal = parseFloat(document.getElementById('battery').value);
     const demandVal = parseFloat(document.getElementById('demand').value);
     const gridCostVal = parseFloat(document.getElementById('gridCost').value);
+    const peakTariffVal = parseFloat(document.getElementById('peakTariff').value) || 10;
+    const offpeakTariffVal = parseFloat(document.getElementById('offpeakTariff').value) || 4;
     const batteryChargeVal = parseFloat(document.getElementById('batteryCharge').value);
 
     if (!solarVal || !windVal || !batteryVal || !demandVal || !gridCostVal) {
@@ -255,7 +257,10 @@ async function optimize() {
                 battery: batteryVal,
                 demand: demandVal,
                 gridCost: gridCostVal,
-                batteryCharge: batteryChargeVal
+                peakTariff: peakTariffVal,
+                offpeakTariff: offpeakTariffVal,
+                batteryCharge: batteryChargeVal,
+                regionType: document.getElementById('region-type').value
             })
         });
 
@@ -265,61 +270,106 @@ async function optimize() {
 
         const data = await response.json();
 
-        if (data.error) {
-            resultDiv.innerHTML = `<p style="color:red;">Error: ${data.error}</p>`;
-            return;
-        }
-
-        const batteryColor = data.battery_action === 'charge' ? '#27ae60' : data.battery_action === 'discharge' ? '#e67e22' : '#95a5a6';
+        if (data.error) throw new Error(data.error);
+            
+        const gridReduction = data.demand > 0 ? Math.max(0, ((data.demand - data.grid) / data.demand) * 100).toFixed(0) : 0;
+        const colorCost = data.savings > 0 ? 'text-green' : 'text-yellow';
+        const colorRen = data.renewable_percent > 75 ? 'status-green' : (data.renewable_percent > 30 ? 'status-yellow' : 'status-red');
+        const colorGrid = gridReduction > 75 ? 'status-green' : (gridReduction > 40 ? 'status-yellow' : 'status-red');
 
         resultDiv.innerHTML = `
-            <div style="background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1)); padding: 15px; border-radius: 8px; margin-bottom: 15px;">
-                <h4 style="color: #667eea; margin-top: 0;">✓ Optimization Complete</h4>
+            <div style="background: rgba(46, 204, 113, 0.1); padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #2ecc71;">
+                <h4 style="color: #2ecc71; margin-top: 0; font-size: 1.2em;">✓ Plan Ready</h4>
+                <p style="font-size: 1.1em; line-height: 1.5; margin-bottom: 15px;">
+                    <strong>"You can run <span style="color:#00f0ff;">${data.renewable_percent.toFixed(0)}%</span> of your home using clean power right now."</strong><br>
+                    "We'll save you about <strong><span style="color:#2ecc71;">₹${data.savings}</span></strong> today."<br>
+                    "You are using <strong><span style="color:#f39c12;">${gridReduction}%</span></strong> less grid power than normal."
+                </p>
             </div>
             
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
-                <div style="padding: 12px; background: rgba(243, 156, 18, 0.1); border-radius: 6px; border-left: 3px solid #f39c12;">
-                    <p style="color: #999; margin: 0; font-size: 0.9em;">☀️ Solar</p>
-                    <p style="color: #f39c12; font-size: 1.5em; font-weight: bold; margin: 5px 0;">${data.solar} kW</p>
+            <h4 style="margin-bottom: 10px; color: #fff;">Performance Indicators</h4>
+            <div class="visual-guidance" style="display: flex; flex-direction: column; gap: 15px; margin-bottom: 20px;">
+                <!-- Renewable Bar -->
+                <div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 0.9em;">
+                        <span>Renewable Usage</span>
+                        <span>${data.renewable_percent.toFixed(0)}%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill ${colorRen}" style="width: ${Math.min(100, data.renewable_percent)}%;"></div>
+                    </div>
                 </div>
-                <div style="padding: 12px; background: rgba(52, 152, 219, 0.1); border-radius: 6px; border-left: 3px solid #3498db;">
-                    <p style="color: #999; margin: 0; font-size: 0.9em;">💨 Wind</p>
-                    <p style="color: #3498db; font-size: 1.5em; font-weight: bold; margin: 5px 0;">${data.wind} kW</p>
-                </div>
-                <div style="padding: 12px; background: rgba(46, 204, 113, 0.1); border-radius: 6px; border-left: 3px solid #2ecc71;">
-                    <p style="color: #999; margin: 0; font-size: 0.9em;">🔋 Battery</p>
-                    <p style="color: #2ecc71; font-size: 1.5em; font-weight: bold; margin: 5px 0;">${data.battery} kW</p>
-                </div>
-                <div style="padding: 12px; background: rgba(231, 76, 60, 0.1); border-radius: 6px; border-left: 3px solid #e74c3c;">
-                    <p style="color: #999; margin: 0; font-size: 0.9em;">🔌 Grid</p>
-                    <p style="color: #e74c3c; font-size: 1.5em; font-weight: bold; margin: 5px 0;">${data.grid} kW</p>
+                
+                <!-- Grid Reduction Bar -->
+                <div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 0.9em;">
+                        <span>Grid Independence</span>
+                        <span>${gridReduction}%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill ${colorGrid}" style="width: ${Math.min(100, gridReduction)}%;"></div>
+                    </div>
                 </div>
             </div>
             
-            <div style="padding: 12px; background: rgba(52, 73, 94, 0.1); border-radius: 6px; border-left: 3px solid #2c3e50; margin-bottom: 15px;">
-                <p style="color: #999; margin: 0; font-size: 0.9em;">Battery Action</p>
-                <p style="color: ${batteryColor}; font-size: 1.1em; font-weight: bold; margin: 5px 0; text-transform: uppercase;">${data.battery_action}</p>
-            </div>
-            
-            <div style="border-top: 1px solid #eee; padding-top: 15px;">
-                <p><strong>📊 Analysis Results:</strong></p>
-                <p>✓ Total Renewable: <strong>${data.total_renewable} kW</strong> (${data.renewable_percent}%)</p>
-                <div style="display:flex; gap: 20px;">
-                    <p style="text-decoration: line-through; color: #e74c3c;">Cost w/o Opt: ₹${data.cost_without_optimization}</p>
-                    <p style="color: #2ecc71; font-weight: bold;">Cost w/ Opt: ₹${data.cost}</p>
+            <h4 style="margin-bottom: 10px; color: #fff;">Detailed Allocation</h4>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 10px; margin-bottom: 15px;">
+                <div style="padding: 10px; background: rgba(255, 255, 255, 0.05); border-radius: 6px; text-align: center;">
+                    <span class="icon">☀️</span>
+                    <p style="margin: 5px 0 0 0; font-weight: bold;">${data.solar} kW</p>
                 </div>
-                <p>💡 Estimated Savings: <strong><span style="color:#2ecc71;">₹${data.savings}</span> per hour</strong></p>
-                <p>♻️ Emissions Avoided: <strong>${data.emissions_avoided_kg} kg CO₂</strong></p>
-                <p>✓ Total Supply: <strong>${data.demand_met} kW</strong></p>
+                <div style="padding: 10px; background: rgba(255, 255, 255, 0.05); border-radius: 6px; text-align: center;">
+                    <span class="icon">💨</span>
+                    <p style="margin: 5px 0 0 0; font-weight: bold;">${data.wind} kW</p>
+                </div>
+                <div style="padding: 10px; background: rgba(255, 255, 255, 0.05); border-radius: 6px; text-align: center;">
+                    <span class="icon">🔋</span>
+                    <p style="margin: 5px 0 0 0; font-weight: bold;">${data.battery} kW</p>
+                </div>
+                <div style="padding: 10px; background: rgba(255, 255, 255, 0.05); border-radius: 6px; text-align: center;">
+                    <span class="icon">🔌</span>
+                    <p style="margin: 5px 0 0 0; font-weight: bold;">${data.grid} kW</p>
+                </div>
             </div>
         `;
-
         // Update Reasoning
         const reasoningDiv = document.getElementById('reasoning-content');
         if (data.reasoning && data.reasoning.length > 0) {
             reasoningDiv.innerHTML = data.reasoning.map(r => `<p style="margin-bottom:10px; border-left: 3px solid #00f0ff; padding-left:10px;">${r}</p>`).join('');
         } else {
             reasoningDiv.innerHTML = `<p class="text-muted" style="margin-top: 20px; font-style: italic;">No specific reasoning provided.</p>`;
+        }
+
+        // Render Control Actions Panel
+        const controlPanel = document.getElementById('control-actions-content');
+        if (controlPanel) {
+            let actionsHTML = '';
+            
+            if (data.battery_action === 'charge') {
+                actionsHTML += `<div style="padding: 12px; background: rgba(46, 204, 113, 0.1); border-radius: 6px; border-left: 3px solid #2ecc71;"><h4 style="margin:0; color:#2ecc71;">⚡ Charging Battery</h4><p style="margin:5px 0 0; font-size:0.85em;">Sending ${data.battery} kW to battery</p></div>`;
+            } else if (data.battery_action === 'discharge') {
+                actionsHTML += `<div style="padding: 12px; background: rgba(231, 76, 60, 0.1); border-radius: 6px; border-left: 3px solid #e74c3c;"><h4 style="margin:0; color:#e74c3c;">🔋 Using Battery</h4><p style="margin:5px 0 0; font-size:0.85em;">Drawing ${data.battery} kW from battery</p></div>`;
+            }
+            
+            if (data.solar > 50 && data.battery_action !== 'discharge') {
+                actionsHTML += `<div style="padding: 12px; background: rgba(52, 152, 219, 0.1); border-radius: 6px; border-left: 3px solid #3498db;"><h4 style="margin:0; color:#3498db;">🚗 Car Charging</h4><p style="margin:5px 0 0; font-size:0.85em;">Extra power ready for your EV</p></div>`;
+            }
+            
+            if (data.grid > 0 && data.cost > 50) {
+                 actionsHTML += `<div style="padding: 12px; background: rgba(243, 156, 18, 0.1); border-radius: 6px; border-left: 3px solid #f39c12;"><h4 style="margin:0; color:#f39c12;">❄️ AC Smart Mode</h4><p style="margin:5px 0 0; font-size:0.85em;">Slightly lowering AC to save money</p></div>`;
+            } else if (data.solar > 80) {
+                 actionsHTML += `<div style="padding: 12px; background: rgba(155, 89, 182, 0.1); border-radius: 6px; border-left: 3px solid #9b59b6;"><h4 style="margin:0; color:#9b59b6;">❄️ Cooling Down Home</h4><p style="margin:5px 0 0; font-size:0.85em;">Using free solar to cool your home</p></div>`;
+            }
+            
+            if (data.solar + data.wind > data.demand + data.battery && data.battery_action !== 'charge') {
+                const excess = ((data.solar + data.wind) - data.demand).toFixed(2);
+                actionsHTML += `<div style="padding: 12px; background: rgba(255, 157, 0, 0.1); border-radius: 6px; border-left: 3px solid #ff9d00;"><h4 style="margin:0; color:#ff9d00;">🔌 Selling Power</h4><p style="margin:5px 0 0; font-size:0.85em;">Selling ${excess} kW back to the grid</p></div>`;
+            }
+            
+            if (actionsHTML === '') {
+                 actionsHTML = `<p class="text-muted" style="grid-column: 1/-1;">✓ Everything looks great. No smart actions needed right now.</p>`;
+            }
+            controlPanel.innerHTML = actionsHTML;
         }
 
         // Draw GA Evolution Chart
@@ -392,26 +442,29 @@ async function generateSchedule() {
     const tbody = document.getElementById('schedule-body');
     const batteryVal = parseFloat(document.getElementById('batteryCharge').value) || 50;
     const gridCostVal = parseFloat(document.getElementById('gridCost').value) || 6;
+    const peakTariffVal = parseFloat(document.getElementById('peakTariff').value) || 10;
+    const offpeakTariffVal = parseFloat(document.getElementById('offpeakTariff').value) || 4;
     const scenario = document.getElementById('sim-scenario') ? document.getElementById('sim-scenario').value : 'normal';
 
     container.style.display = 'block';
     tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 20px;">⏳ Generating predictive schedule...</td></tr>';
 
     try {
-        const response = await fetch(`${API_URL}/optimize-schedule?batteryCharge=${batteryVal}&gridCost=${gridCostVal}&scenario=${scenario}`);
+        const regionType = document.getElementById('region-type').value;
+        const response = await fetch(`${API_URL}/optimize-schedule?batteryCharge=${batteryVal}&gridCost=${gridCostVal}&peakTariff=${peakTariffVal}&offpeakTariff=${offpeakTariffVal}&scenario=${scenario}&regionType=${regionType}`);
         if (!response.ok) throw new Error("Failed to fetch schedule");
         
         const data = await response.json();
         if (data.error) throw new Error(data.error);
 
         tbody.innerHTML = data.schedule.map(row => {
-            const bColor = row.battery_action === 'charge' ? '#2ecc71' : row.battery_action === 'discharge' ? '#e74c3c' : '#bdc3c7';
+            const bColor = row.battery === 'charge' ? '#2ecc71' : row.battery === 'discharge' ? '#e74c3c' : '#bdc3c7';
             return `
             <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
-                <td style="padding: 10px;"><strong>${row.time}</strong></td>
+                <td style="padding: 10px;"><strong>${row.hour}:00</strong></td>
                 <td style="padding: 10px; color: #f39c12;">${row.solar}</td>
                 <td style="padding: 10px; color: #3498db;">${row.wind}</td>
-                <td style="padding: 10px;"><strong style="color: ${bColor}; text-transform: uppercase;">${row.battery_action}</strong></td>
+                <td style="padding: 10px;"><strong style="color: ${bColor}; text-transform: uppercase;">${row.battery}</strong></td>
                 <td style="padding: 10px; color: #e74c3c;">${row.grid}</td>
             </tr>
             `;
@@ -429,7 +482,8 @@ async function loadForecast() {
     const scenario = document.getElementById('sim-scenario') ? document.getElementById('sim-scenario').value : 'normal';
 
     try {
-        const response = await fetch(`${API_URL}/forecast?solar_max=${solarMax}&wind_max=${windMax}&demand_avg=${demandAvg}&scenario=${scenario}`);
+        const regionType = document.getElementById('region-type').value;
+        const response = await fetch(`${API_URL}/forecast?solar_max=${solarMax}&wind_max=${windMax}&demand_avg=${demandAvg}&scenario=${scenario}&regionType=${regionType}`);
         const data = await response.json();
 
         const forecasts = data.forecasts;
@@ -550,19 +604,19 @@ function generateForecastSuggestions(forecasts) {
     });
 
     if (peakSolarHour !== -1) {
-        suggestions.push(`☀️ <strong>Peak Solar expected around ${peakSolarHour}:00 (${maxSolar.toFixed(1)} kW).</strong> <br>→ <em>Recommendation:</em> Schedule EV charging, heavy appliances, and water heating during this period.`);
-        suggestions.push(`🔋 <strong>Charge Batteries during solar peak (${peakSolarHour}:00).</strong> <br>→ <em>Impact:</em> Reduces grid dependency later during peak hours.`);
+        suggestions.push(`☀️ <strong>Most Sun Expected at ${peakSolarHour}:00 (${maxSolar.toFixed(1)} kW).</strong> <br>→ <em>Tip:</em> Try to wash clothes, heat water, or charge your EV around this time.`);
+        suggestions.push(`🔋 <strong>Charging Battery at ${peakSolarHour}:00.</strong> <br>→ <em>Why:</em> Saves power for tonight so you buy less from the grid.`);
     }
     
     if (peakDemandHour !== -1 && peakDeficitHour !== -1) {
-        suggestions.push(`📉 <strong>High Demand & Energy Deficit predicted around ${peakDeficitHour}:00 (Shortfall: ${Math.abs(maxDeficit).toFixed(1)} kW).</strong> <br>→ <em>Recommendation:</em> Discharge batteries and minimize non-essential loads to avoid high grid tariffs.`);
+        suggestions.push(`📉 <strong>High Power Use Expected at ${peakDeficitHour}:00 (Need ${Math.abs(maxDeficit).toFixed(1)} kW more).</strong> <br>→ <em>Tip:</em> Try to run fewer heavy appliances at this time to save money.`);
     }
 
     const suggestDiv = document.getElementById('forecast-suggestions');
     if (suggestions.length > 0) {
         suggestDiv.innerHTML = suggestions.map(s => `<p style="margin-bottom:12px; border-left: 3px solid #f1c40f; padding-left:10px;">${s}</p>`).join('');
     } else {
-        suggestDiv.innerHTML = `<p class="text-muted">No significant load shifting opportunities predicted.</p>`;
+        suggestDiv.innerHTML = `<p class="text-muted">No special tips for today. Looking good!</p>`;
     }
 }
 
@@ -867,3 +921,31 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }, 30000);
 });
+
+
+function updateBasedOnRegion() {
+    const roleMap = {
+        "Individual House": "For home users, the system focuses on reducing electricity bills.",
+        "Apartment Complex": "For apartment managers, we prioritize large cost optimizations and peak shifting.",
+        "Hospital": "For hospitals, the system prioritizes 100% reliability and maximum battery reserves.",
+        "Rural Village": "For villages, the system aims for maximum grid independence and solar storage.",
+        "Police Station": "For offices, the system ensures consistent power delivery and night backup.",
+        "Smart Campus": "For campuses, the system balances carbon emission reduction with cost savings."
+    };
+    const rType = document.getElementById('region-type').value;
+    const msgEl = document.getElementById('user-role-message');
+    if (msgEl) msgEl.innerText = roleMap[rType] || roleMap["Individual House"];
+
+    const activeTab = document.querySelector('.tab-content.active');
+    if (activeTab && activeTab.id === 'forecast') {
+        loadForecast();
+    } else if (activeTab && activeTab.id === 'optimizer') {
+        const resultDiv = document.getElementById('result');
+        if (resultDiv) {
+            resultDiv.innerHTML = '<p class="text-muted text-center" style="margin-top: 40px; font-style: italic;">User changed. Please select ⚡ Find Best Savings Plan.</p>';
+        }
+    }
+}
+
+// Init message on load
+document.addEventListener('DOMContentLoaded', () => { updateBasedOnRegion(); });

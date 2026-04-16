@@ -10,6 +10,8 @@ from pathlib import Path
 
 from predictive_model import PredictiveModel
 from auto_optimize import AutoOptimizer
+from simulation_engine import SimulationEngine
+from data_adapters import VPPDataAggregator, RESTInverterAdapter, MQTTIoTAdapter, ModbusEnergyMeterAdapter, CSVBatchAdapter
 
 app = Flask(__name__)
 CORS(app)
@@ -77,110 +79,10 @@ def init_db():
 
 init_db()
 
-# ========== GENETIC ALGORITHM ENGINE ==========
-def fitness(chromosome, grid_cost, demand, battery_cap):
-    """
-    Fitness function: minimize cost and grid dependency, maximize renewable usage
-    chromosome = [solar_use, wind_use, battery_use, grid_use]
-    """
-    solar_use, wind_use, battery_use, grid_use = chromosome
-    
-    # Cost objective
-    cost = grid_use * grid_cost
-    
-    # Renewable objective (reward renewable)
-    renewable_used = solar_use + wind_use + battery_use
-    
-    # Penalty for unmet demand
-    total_supply = renewable_used + grid_use
-    penalty = abs(total_supply - demand) * 10 if total_supply < demand else 0
-    
-    # Penalty for exceeding battery capacity (discharge)
-    battery_penalty = max(0, battery_use - battery_cap) * 5
-    
-    # Composite fitness (lower is better)
-    fitness_score = cost + penalty + battery_penalty - (renewable_used * 0.2)
-    
-    return fitness_score
-
-def create_population(solar_avail, wind_avail, battery_cap, demand):
-    """Create initial population of solutions"""
-    population = []
-    for _ in range(POP_SIZE):
-        solar = random.uniform(0, solar_avail)
-        wind = random.uniform(0, wind_avail)
-        battery = random.uniform(0, battery_cap)
-        grid = max(0, demand - (solar + wind + battery))
-        
-        # Constraint: total supply must meet or exceed demand
-        total = solar + wind + battery + grid
-        if total < demand:
-            grid = demand - (solar + wind + battery)
-        
-        population.append([solar, wind, battery, grid])
-    return population
-
-def crossover(parent1, parent2):
-    """Single-point crossover"""
-    cut = random.randint(1, len(parent1) - 1)
-    child = parent1[:cut] + parent2[cut:]
-    return child
-
-def mutate(chromosome, solar_avail, wind_avail, battery_cap, demand, mutation_rate=0.2):
-    """Adaptive mutation"""
-    if random.random() < mutation_rate:
-        idx = random.randint(0, 2)
-        perturbation = random.uniform(-0.15, 0.15)
-        
-        if idx == 0:  # Solar
-            chromosome[0] = max(0, min(solar_avail, chromosome[0] * (1 + perturbation)))
-        elif idx == 1:  # Wind
-            chromosome[1] = max(0, min(wind_avail, chromosome[1] * (1 + perturbation)))
-        else:  # Battery
-            chromosome[2] = max(0, min(battery_cap, chromosome[2] * (1 + perturbation)))
-        
-        # Recalculate grid to meet demand
-        chromosome[3] = max(0, demand - (chromosome[0] + chromosome[1] + chromosome[2]))
-    
-    return chromosome
-
-def genetic_algorithm_optimize(solar_avail, wind_avail, battery_cap, demand, grid_cost):
-    """Execute GA optimization and return best solution and evolution history"""
-    population = create_population(solar_avail, wind_avail, battery_cap, demand)
-    evolution_history = []
-    
-    for generation in range(GENERATIONS):
-        # Evaluate fitness
-        fitness_scores = [fitness(ind, grid_cost, demand, battery_cap) for ind in population]
-        
-        # Sort by fitness (ascending - lower is better)
-        sorted_pop = sorted(zip(population, fitness_scores), key=lambda x: x[1])
-        population = [ind for ind, _ in sorted_pop]
-        
-        # Selection - keep top 30%
-        elite_count = max(2, POP_SIZE // 3)
-        new_population = population[:elite_count].copy()
-        
-        # Reproduction via crossover and mutation
-        while len(new_population) < POP_SIZE:
-            parent1 = population[random.randint(0, elite_count - 1)]
-            parent2 = population[random.randint(0, elite_count - 1)]
-            child = crossover(parent1, parent2)
-            child = mutate(child, solar_avail, wind_avail, battery_cap, demand)
-            new_population.append(child)
-        
-        population = new_population
-        
-        # Record best fitness of the current population
-        best_current_fitness = min(fitness(ind, grid_cost, demand, battery_cap) for ind in population)
-        evolution_history.append({"generation": generation + 1, "cost": round(best_current_fitness, 2)})
-    
-    # Return best solution and evolution history
-    population.sort(key=lambda x: fitness(x, grid_cost, demand, battery_cap))
-    return population[0], evolution_history
+from ga_optimizer import genetic_algorithm_optimize
 
 # ========== FORECASTING MODULE ==========
-def forecast_demand(hour_of_day, day_of_week, current_demand, historical_avg):
+def forecast_demand(hour_of_day, day_of_week, current_demand, historical_avg, region_type='Individual House'):
     """
     Simple demand forecasting based on time patterns
     hour_of_day: 0-23
@@ -189,10 +91,30 @@ def forecast_demand(hour_of_day, day_of_week, current_demand, historical_avg):
     # Weekday vs Weekend pattern
     weekend_factor = 0.85 if day_of_week >= 5 else 1.0
     
-    # Hourly pattern (peak: 9-11, 14-18, 20-22)
-    peak_hours = [9, 10, 11, 14, 15, 16, 17, 18, 20, 21, 22]
-    hour_factor = 1.3 if hour_of_day in peak_hours else 0.8 if hour_of_day in [2, 3, 4, 5] else 1.0
-    
+    hour_factor = 1.0
+    if region_type == 'Hospital':
+        hour_factor = 1.1  # Very flat, high demand
+        weekend_factor = 1.0
+    elif region_type == 'Individual House':
+        peak_hours = [7, 8, 9, 18, 19, 20, 21, 22]
+        hour_factor = 1.4 if hour_of_day in peak_hours else 0.6 if hour_of_day in [2, 3, 4, 5] else 0.8
+    elif region_type == 'Apartment Complex':
+        peak_hours = [6, 7, 8, 17, 18, 19, 20, 21, 22, 23]
+        hour_factor = 1.3 if hour_of_day in peak_hours else 0.7 if hour_of_day in [1, 2, 3, 4] else 0.9
+    elif region_type == 'Police Station':
+        # Constant with night time spike for lights/equipment
+        hour_factor = 1.2 if hour_of_day >= 18 or hour_of_day <= 6 else 1.0
+        weekend_factor = 1.0
+    elif region_type == 'Rural Village':
+        # Evening peaks only
+        peak_hours = [18, 19, 20, 21]
+        hour_factor = 1.5 if hour_of_day in peak_hours else 0.5 if hour_of_day in [23, 0, 1, 2, 3, 4, 5] else 0.7
+    elif region_type == 'Smart Campus':
+        # Day time highs
+        peak_hours = [9, 10, 11, 12, 13, 14, 15, 16]
+        hour_factor = 1.4 if hour_of_day in peak_hours else 0.5
+        weekend_factor = 0.3 # Huge drop on weekends
+        
     forecast = historical_avg * weekend_factor * hour_factor
     return max(forecast * 0.9, forecast * 1.1)
 
@@ -230,6 +152,35 @@ def forecast_wind(hour_of_day, wind_speed_avg=5, max_wind=50):
 
 # ========== REST API ENDPOINTS ==========
 
+sim_thread = None
+
+@app.route("/simulate-data", methods=["POST", "GET"])
+def toggle_simulation():
+    global sim_thread
+    try:
+        if request.method == "POST":
+            data = request.json or {}
+            action = data.get("action", "start")
+        else:
+            action = request.args.get("action", "start")
+
+        if action == "start":
+            if sim_thread is None or not sim_thread.running:
+                sim_thread = SimulationEngine(db_file=DB_FILE, interval_seconds=10)
+                sim_thread.start()
+                return jsonify({"status": "Simulation started", "interval": 10})
+            else:
+                return jsonify({"status": "Simulation already running"})
+        elif action == "stop":
+            if sim_thread and sim_thread.running:
+                sim_thread.stop()
+                sim_thread = None
+                return jsonify({"status": "Simulation stopped"})
+            else:
+                return jsonify({"status": "Simulation not running"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @app.route("/health", methods=["GET"])
 def health():
     """Health check endpoint"""
@@ -244,10 +195,13 @@ def optimize_schedule():
     try:
         battery_charge_percent = float(request.args.get('batteryCharge', 50))
         grid_cost = float(request.args.get('gridCost', 6))
+        peak_tariff = float(request.args.get('peakTariff', 10))
+        offpeak_tariff = float(request.args.get('offpeakTariff', 4))
         scenario_type = request.args.get('scenario', 'normal')
+        region_type = request.args.get('regionType', 'Individual House')
         
         predictor = PredictiveModel(DB_FILE)
-        forecast_data = predictor.generate_forecast(hours_ahead=24, scenario=scenario_type)
+        forecast_data = predictor.generate_forecast(hours_ahead=24, scenario=scenario_type, region_type=region_type)
         
         if not forecast_data or all(f['demand_forecast'] == 0 for f in forecast_data):
             return jsonify({"error": "Insufficient historical data for predictive scheduling"}), 400
@@ -263,7 +217,16 @@ def optimize_schedule():
             # Assume 100 max capacity for schedule math if not strictly tracked via simulation
             battery_cap = 100.0 
             
-            best_solution, _ = genetic_algorithm_optimize(solar_avail, wind_avail, battery_cap, demand, grid_cost)
+            # Time-of-day tariff
+            hour = hour_data['hour']
+            if 18 <= hour <= 22:
+                hr_grid_cost = peak_tariff
+            elif 8 <= hour < 18:
+                hr_grid_cost = grid_cost
+            else:
+                hr_grid_cost = offpeak_tariff
+            
+            best_solution, _, _, _ = genetic_algorithm_optimize(solar_avail, wind_avail, battery_cap, demand, hr_grid_cost, region_type, current_battery)
             solar_use, wind_use, battery_use, grid_use = best_solution
             
             if battery_use > battery_cap * 0.1:
@@ -274,10 +237,10 @@ def optimize_schedule():
                 b_action = "idle"
                 
             schedule.append({
-                "time": f"{hour_data['hour']:02d}:00",
+                "hour": hour_data['hour'],
                 "solar": round(solar_use, 2),
                 "wind": round(wind_use, 2),
-                "battery_action": b_action,
+                "battery": b_action,
                 "grid": round(grid_use, 2)
             })
             
@@ -310,6 +273,18 @@ def optimize():
         demand = float(data.get('demand', 0))
         grid_cost = float(data.get('gridCost', 6))
         battery_charge_percent = float(data.get('batteryCharge', 50))
+        peak_tariff = float(data.get('peakTariff', 10))
+        offpeak_tariff = float(data.get('offpeakTariff', 4))
+        region_type = data.get('regionType', 'Individual House')
+        
+        # Determine actual tariff based on time
+        hour = datetime.now().hour
+        if 18 <= hour <= 22:
+            actual_tariff = peak_tariff
+        elif 8 <= hour < 18:
+            actual_tariff = grid_cost
+        else:
+            actual_tariff = offpeak_tariff
         
         # Validation
         if demand <= 0:
@@ -318,45 +293,23 @@ def optimize():
             return jsonify({"error": "Energy values cannot be negative"}), 400
         
         # Run optimization
-        best_solution, evolution_history = genetic_algorithm_optimize(solar_avail, wind_avail, battery_cap, demand, grid_cost)
+        best_solution, evolution_history, battery_action, reasoning = genetic_algorithm_optimize(solar_avail, wind_avail, battery_cap, demand, actual_tariff, region_type, battery_charge_percent)
         solar_use, wind_use, battery_use, grid_use = best_solution
         
         # Calculate metrics
         renewable_total = solar_use + wind_use + battery_use
         renewable_percent = (renewable_total / demand * 100) if demand > 0 else 0
-        total_cost = grid_use * grid_cost
-        emissions_avoided = (renewable_total * (CARBON_FACTOR_GRID - 0)) / 1000  # kg CO2
+        total_cost = grid_use * actual_tariff
         
-        # Determine battery action and reasoning
-        battery_action = "idle"
-        reasoning = []
+        # Carbon impact calculation
+        grid_energy_without_opt = demand
+        grid_energy_with_opt = grid_use
+        emissions_avoided = (grid_energy_without_opt - grid_energy_with_opt) * 0.82  # kg CO2
         
-        if solar_use > 0:
-            if solar_avail >= demand * 0.5:
-                reasoning.append("☀️ Solar generation high → maximizing solar energy utilization.")
-            else:
-                reasoning.append("☀️ Utilizing available solar energy to offset grid demand.")
-                
-        if wind_use > 0:
-             reasoning.append("💨 Wind output available → including wind in supply mix.")
-             
-        if battery_use > battery_cap * 0.1:
-            battery_action = "discharge"
-            reasoning.append("🔋 Battery level sufficient → discharging battery to reduce grid usage.")
-        elif battery_charge_percent < 30 and solar_avail + wind_avail > demand:
-            battery_action = "charge"
-            reasoning.append("🔋 Battery charge low & renewable surplus → charging battery for future use.")
-        else:
-            battery_action = "idle"
-            
-        if grid_use > 0:
-            if grid_cost > 5:
-                reasoning.append("🔌 Grid tariff high → minimizing grid import through optimal allocation.")
-            else:
-                reasoning.append(f"🔌 Renewables insufficient → importing {round(grid_use, 2)} kW from grid to meet demand.")
+        
 
         # Cost without optimization
-        cost_without_optimization = demand * grid_cost
+        cost_without_optimization = demand * actual_tariff
         savings = max(0, cost_without_optimization - total_cost)
         
         # Log to database
@@ -403,24 +356,36 @@ def get_forecast():
         wind_max = float(request.args.get('wind_max', 50))
         demand_avg = float(request.args.get('demand_avg', 60))
         scenario_type = request.args.get('scenario', 'normal')
+        region_type = request.args.get('regionType', 'Individual House')
         
         # 1. Attempt using Live Data Predictive Model
         predictor = PredictiveModel(DB_FILE)
-        forecast_data = predictor.generate_forecast(hours_ahead=24, scenario=scenario_type)
+        forecast_data = predictor.generate_forecast(hours_ahead=24, scenario=scenario_type, region_type=region_type)
         
         # 2. Fallback to heuristic curves if insufficient historical data
         if not forecast_data or all(f['demand_forecast'] == 0 for f in forecast_data):
             now = datetime.now()
             forecast_data = []
             
+            solar_mult = 1.0
+            wind_mult = 1.0
+            demand_mult = 1.0
+            
+            if scenario_type == 'cloudy':
+                solar_mult = 0.3
+            elif scenario_type == 'high_wind':
+                wind_mult = 1.8
+            elif scenario_type == 'demand_surge':
+                demand_mult = 1.5
+                
             for hour in range(24):
                 forecast_time = now + timedelta(hours=hour)
                 hour_of_day = forecast_time.hour
                 day_of_week = forecast_time.weekday()
                 
-                solar_gen = forecast_solar(hour_of_day, cloud_cover=20, max_solar=solar_max)
-                wind_gen = forecast_wind(hour_of_day, wind_speed_avg=5, max_wind=wind_max)
-                demand_pred = forecast_demand(hour_of_day, day_of_week, demand_avg, demand_avg)
+                solar_gen = forecast_solar(hour_of_day, cloud_cover=20, max_solar=solar_max) * solar_mult
+                wind_gen = forecast_wind(hour_of_day, wind_speed_avg=5, max_wind=wind_max) * wind_mult
+                demand_pred = forecast_demand(hour_of_day, day_of_week, demand_avg, demand_avg, request.args.get('regionType', 'Individual House')) * demand_mult
                 
                 forecast_data.append({
                     "hour": hour_of_day,
@@ -736,3 +701,6 @@ if __name__ == "__main__":
     print("[+] Auto-Optimizer Started (Runs every 1 minute on predictions)")
     print("[+] Server running on http://127.0.0.1:5000")
     app.run(debug=True, host='127.0.0.1', port=5000, use_reloader=False)
+@app.route('/')
+def home():
+    return "Backend is running successfully"

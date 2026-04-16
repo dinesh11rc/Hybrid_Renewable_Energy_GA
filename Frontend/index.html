@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Zero-G Hybrid Energy Ecosystem</title>
+    <title> Smart Energy Optimizer</title>
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -23,13 +23,27 @@
 <!-- Navigation Bar -->
 <nav class="navbar glass-panel">
     <div class="navbar-content">
-        <h1 class="logo glow-text">⚡ Zero-G Energy</h1>
+        <h1 class="logo glow-text">⚡ Smart Energy</h1>
         <div class="nav-links">
-            <button class="nav-btn active pulse-hover" onclick="switchTab('dashboard')">Dashboard</button>
-            <button class="nav-btn pulse-hover" onclick="switchTab('forecast')">Forecast</button>
-            <button class="nav-btn pulse-hover" onclick="switchTab('optimizer')">Optimizer</button>
-            <button class="nav-btn pulse-hover" onclick="switchTab('analytics')">Analytics</button>
-            <button class="nav-btn pulse-hover" onclick="switchTab('alerts')">Alerts</button>
+            <button class="nav-btn active pulse-hover" onclick="switchTab('dashboard')">Home</button>
+            <button class="nav-btn pulse-hover" onclick="switchTab('forecast')">Weather & Forecast</button>
+            <button class="nav-btn pulse-hover" onclick="switchTab('optimizer')">My Plan</button>
+            <button class="nav-btn pulse-hover" onclick="switchTab('analytics')">History & Savings</button>
+            <button class="nav-btn pulse-hover" onclick="switchTab('alerts')">Notifications</button>
+        </div>
+                <div class="region-selector" style="display: flex; flex-direction: column; align-items: flex-end; margin-left: auto;">
+            <div style="display: flex; align-items: center;">
+                <label style="color: #00f0ff; font-weight: 600; margin-right: 10px; font-size: 0.95em;">Who is using this system?</label>
+                <select id="region-type" class="glass-select" onchange="updateBasedOnRegion()" style="padding: 8px; font-size: 0.9em; background: rgba(0, 240, 255, 0.1); border: 1px solid rgba(0, 240, 255, 0.3); border-radius: 4px; color: white; min-width: 200px;">
+                    <option value="Individual House">Home User</option>
+                    <option value="Apartment Complex">Apartment Manager</option>
+                    <option value="Hospital">Hospital</option>
+                    <option value="Rural Village">Village Energy System</option>
+                    <option value="Police Station">Office Building</option>
+                    <option value="Smart Campus">Smart Campus</option>
+                </select>
+            </div>
+            <p id="user-role-message" style="margin: 5px 0 0 0; font-size: 0.8em; color: rgba(255,255,255,0.7); max-width: 350px; text-align: right;">For home users, the system focuses on reducing electricity bills.</p>
         </div>
     </div>
 </nav>
@@ -40,7 +54,7 @@
     <!-- ========== DASHBOARD TAB ========== -->
     <div id="dashboard" class="tab-content active transition-wrapper">
         <div class="dashboard-header">
-            <h2>Command Center</h2>
+            <h2>Welcome Home</h2>
             <div class="status-indicator online">
                 <span class="dot"></span> System Online
             </div>
@@ -50,39 +64,39 @@
         <div class="status-grid">
             <div class="status-card glass-panel hover-lift">
                 <div class="icon-wrapper solar"><span class="icon">☀️</span></div>
-                <h3>Solar Power</h3>
+                <h3>Solar Panels</h3>
                 <p class="big-value neon-orange" id="solar-current">-- <span class="unit">kW</span></p>
-                <p class="sub-text">Current Generation</p>
+                <p class="sub-text">Currently Producing</p>
             </div>
             <div class="status-card glass-panel hover-lift">
                 <div class="icon-wrapper wind"><span class="icon">💨</span></div>
-                <h3>Wind Power</h3>
+                <h3>Wind Turbine</h3>
                 <p class="big-value neon-blue" id="wind-current">-- <span class="unit">kW</span></p>
-                <p class="sub-text">Current Generation</p>
+                <p class="sub-text">Currently Producing</p>
             </div>
             <div class="status-card glass-panel hover-lift">
                 <div class="icon-wrapper battery"><span class="icon">🔋</span></div>
-                <h3>Storage</h3>
+                <h3>Battery</h3>
                 <p class="big-value neon-green" id="battery-current">-- <span class="unit">%</span></p>
-                <p class="sub-text">Charge Level</p>
+                <p class="sub-text">Current Level</p>
             </div>
             <div class="status-card glass-panel hover-lift">
                 <div class="icon-wrapper grid"><span class="icon">🔌</span></div>
-                <h3>Grid Import</h3>
+                <h3>Power From Grid</h3>
                 <p class="big-value neon-red" id="grid-current">-- <span class="unit">kW</span></p>
-                <p class="sub-text">Current Draw</p>
+                <p class="sub-text">Currently Using</p>
             </div>
             <div class="status-card glass-panel hover-lift">
                 <div class="icon-wrapper demand"><span class="icon">📊</span></div>
-                <h3>Demand</h3>
+                <h3>Home Power Usage</h3>
                 <p class="big-value text-white" id="demand-current">-- <span class="unit">kW</span></p>
-                <p class="sub-text">Total Load</p>
+                <p class="sub-text">Total Electricity Needed</p>
             </div>
             <div class="status-card glass-panel hover-lift">
                 <div class="icon-wrapper eco"><span class="icon">♻️</span></div>
-                <h3>Renewable</h3>
+                <h3>Clean Energy</h3>
                 <p class="big-value neon-cyan" id="renewable-percent">-- <span class="unit">%</span></p>
-                <p class="sub-text">Of Total Supply</p>
+                <p class="sub-text">Of Your Usage Now</p>
             </div>
         </div>
 
@@ -90,7 +104,7 @@
             <!-- Real-time Chart -->
             <div class="chart-container glass-panel hover-lift main-chart">
                 <div class="section-title">
-                    <h3>Live Energy Analytics</h3>
+                    <h3>Live Energy Usage</h3>
                     <span class="live-tag">LIVE</span>
                 </div>
                 <div class="canvas-wrapper">
@@ -100,9 +114,9 @@
 
             <!-- Recommendations -->
             <div class="recommendations-box glass-panel glass-border-warning">
-                <h3><span class="icon">🎯</span> Active AI Imperatives</h3>
+                <h3><span class="icon">💡</span> Smart Tips for You</h3>
                 <div id="recommendations-content" class="rec-list">
-                    <p class="text-muted">Awaiting stream telemetry...</p>
+                    <p class="text-muted">Waiting for data...</p>
                 </div>
             </div>
         </div>
@@ -110,41 +124,51 @@
 
     <!-- ========== FORECAST TAB ========== -->
     <div id="forecast" class="tab-content transition-wrapper">
-        <h2>Algorithmic Forecasting</h2>
+        <h2>Weather & Energy Forecast</h2>
         
         <div class="forecast-params glass-panel">
             <div class="input-group">
-                <label>Max Solar (kW)</label>
+                <label>My Max Solar Power (kW)</label>
                 <input id="forecast-solar" class="glass-input" type="number" min="0" value="100">
             </div>
             <div class="input-group">
-                <label>Max Wind (kW)</label>
+                <label>My Max Wind Power (kW)</label>
                 <input id="forecast-wind" class="glass-input" type="number" min="0" value="50">
             </div>
             <div class="input-group">
-                <label>Baseline Demand (kW)</label>
+                <label>Normal Power Wanted (kW)</label>
                 <input id="forecast-demand" class="glass-input" type="number" min="0" value="60">
             </div>
-            <button onclick="loadForecast()" class="action-btn glow-btn hover-lift">🔮 Project Timeline</button>
+            <div class="input-group">
+                <label>Weather Today</label>
+                <select id="sim-scenario" class="glass-select">
+                    <option value="normal">Normal Day</option>
+                    <option value="cloudy">Cloudy Weather</option>
+                    <option value="high_wind">Very Windy</option>
+                    <option value="demand_surge">Using Lots of Power</option>
+                    <option value="grid_failure">Power Cut</option>
+                </select>
+            </div>
+            <button onclick="loadForecast()" class="action-btn glow-btn hover-lift">🔮 Get Forecast Details</button>
         </div>
 
         <div class="forecast-grid">
             <div class="chart-container glass-panel hover-lift">
-                <h3>Predictive Generation vs Demand</h3>
+                <h3>Power Produced vs Used</h3>
                 <div class="canvas-wrapper"><canvas id="forecastChart"></canvas></div>
             </div>
 
             <div class="chart-container glass-panel hover-lift">
-                <h3>Surplus & Deficit Trajectory</h3>
+                <h3>Extra Power / Power Shortage</h3>
                 <div class="canvas-wrapper"><canvas id="surplusChart"></canvas></div>
             </div>
         </div>
 
         <div class="forecast-insights" style="margin-top: 25px;">
             <div class="glass-panel glass-border-warning" style="padding: 20px;">
-                <h3><span class="icon">🤖</span> Intelligent Load Shifting & Forecast Suggestions</h3>
+                <h3><span class="icon">🤖</span> Suggestions for Best Usage</h3>
                 <div id="forecast-suggestions" class="rec-list">
-                    <p class="text-muted" style="margin-top: 15px; font-style: italic;">Generate a forecast to view AI load shifting suggestions...</p>
+                    <p class="text-muted" style="margin-top: 15px; font-style: italic;">Get a forecast to view smart suggestions...</p>
                 </div>
             </div>
         </div>
@@ -152,48 +176,79 @@
 
     <!-- ========== OPTIMIZER TAB ========== -->
     <div id="optimizer" class="tab-content transition-wrapper">
-        <h2>Genetic Optimization Engine</h2>
+        <h2>My Plan</h2>
         
         <div class="optimizer-panel">
             <div class="input-section glass-panel glass-border-primary">
-                <h3><span class="icon">📥</span> Parameters</h3>
-                <div class="form-grid">
-                    <div class="input-group">
-                        <label>Solar Array (kW)</label>
-                        <input id="solar" class="glass-input" type="number" min="0" value="100">
-                    </div>
-                    <div class="input-group">
-                        <label>Wind Turbine (kW)</label>
-                        <input id="wind" class="glass-input" type="number" min="0" value="50">
-                    </div>
-                    <div class="input-group">
-                        <label>Battery Storage (kW)</label>
-                        <input id="battery" class="glass-input" type="number" min="0" value="30">
-                    </div>
-                    <div class="input-group">
-                        <label>Campus Load (kW)</label>
-                        <input id="demand" class="glass-input" type="number" min="0.1" value="60">
-                    </div>
-                    <div class="input-group">
-                        <label>Grid Tariff (₹/kWh)</label>
-                        <input id="gridCost" class="glass-input" type="number" min="0.1" value="6">
-                    </div>
-                    <div class="input-group">
-                        <label>Batt Charge State (%)</label>
-                        <input id="batteryCharge" class="glass-input" type="number" min="0" max="100" value="50">
-                    </div>
+                <h3><span class="icon">📥</span> My Appliances & Settings</h3>
+                <div class="form-sections" style="display: flex; flex-direction: column; gap: 15px;">
+                    <fieldset style="border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 15px;">
+                        <legend style="color: #00f0ff; font-weight: 600; padding: 0 10px;">🌞 Energy Sources</legend>
+                        <div class="form-grid">
+                            <div class="input-group" title="Maximum solar power available right now">
+                                <label>Solar Panels (kW)</label>
+                                <input id="solar" class="glass-input" type="number" min="0" value="100">
+                            </div>
+                            <div class="input-group" title="Current wind power generation">
+                                <label>Wind Turbine (kW)</label>
+                                <input id="wind" class="glass-input" type="number" min="0" value="50">
+                            </div>
+                        </div>
+                    </fieldset>
+                    
+                    <fieldset style="border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 15px;">
+                        <legend style="color: #2ecc71; font-weight: 600; padding: 0 10px;">⚡ Load Requirements</legend>
+                        <div class="form-grid">
+                            <div class="input-group" title="Total energy needed by the building">
+                                <label>Total Power Needs (kW)</label>
+                                <input id="demand" class="glass-input" type="number" min="0.1" value="60">
+                            </div>
+                        </div>
+                    </fieldset>
+                    
+                    <fieldset style="border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 15px;">
+                        <legend style="color: #e74c3c; font-weight: 600; padding: 0 10px;">💰 Electricity Cost</legend>
+                        <div class="form-grid">
+                            <div class="input-group" title="Current cost of grid electricity per hour">
+                                <label>Normal Electricity Price (₹)</label>
+                                <input id="gridCost" class="glass-input" type="number" min="0.1" value="6">
+                            </div>
+                            <div class="input-group" title="Highest daily rate">
+                                <label>High Electricity Price (₹)</label>
+                                <input id="peakTariff" class="glass-input" type="number" min="0.1" value="10">
+                            </div>
+                            <div class="input-group" title="Lowest nightly rate">
+                                <label>Off-Peak Electricity Price (₹)</label>
+                                <input id="offpeakTariff" class="glass-input" type="number" min="0.1" value="4">
+                            </div>
+                        </div>
+                    </fieldset>
+                    
+                    <fieldset style="border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 15px;">
+                        <legend style="color: #f39c12; font-weight: 600; padding: 0 10px;">🔋 Battery Settings</legend>
+                        <div class="form-grid">
+                            <div class="input-group" title="Total capacity of the battery">
+                                <label>Battery Size (kW)</label>
+                                <input id="battery" class="glass-input" type="number" min="0" value="30">
+                            </div>
+                            <div class="input-group" title="Current charge level of the battery">
+                                <label>Charge Level (%)</label>
+                                <input id="batteryCharge" class="glass-input" type="number" min="0" max="100" value="50">
+                            </div>
+                        </div>
+                    </fieldset>
                 </div>
                 
-                <div style="display: flex; gap: 10px; margin-top: 20px;">
-                    <button onclick="optimize()" class="optimize-btn glow-btn green hover-lift" style="flex: 1;">⚡ Initialize Genetic Sequence</button>
-                    <button onclick="generateSchedule()" class="optimize-btn glow-btn blue hover-lift" style="flex: 1;">📅 Generate 24-Hour Schedule</button>
+                <div style="display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap;">
+                    <button onclick="optimize()" class="optimize-btn glow-btn green hover-lift" style="flex: 1;">⚡ Find Best Savings Plan</button>
+                    <button onclick="generateSchedule()" class="optimize-btn glow-btn blue hover-lift" style="flex: 1;">📅 Create Daily Schedule</button>
                 </div>
             </div>
 
             <div class="result-section glass-panel">
-                <h3><span class="icon">🧬</span> Output Matrix</h3>
+                <h3><span class="icon">💡</span> Today's Best Energy Plan</h3>
                 <div id="result" class="result-box">
-                    <p class="text-muted text-center" style="margin-top: 40px; font-style: italic;">Awaiting parameters to commence optimization...</p>
+                    <p class="text-muted text-center" style="margin-top: 40px; font-style: italic;">Fill out your settings to see your plan...</p>
                 </div>
             </div>
         </div>
@@ -201,15 +256,23 @@
         <!-- New Panels for GA Convergence and Reasoning -->
         <div class="optimizer-details-grid" style="margin-top: 25px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
             <div class="chart-container glass-panel hover-lift">
-                <h3><span class="icon">📈</span> Genetic Evolution Convergence</h3>
+                <h3><span class="icon">📈</span> System Thinking Process</h3>
                 <div class="canvas-wrapper"><canvas id="gaEvolutionChart"></canvas></div>
             </div>
             
             <div class="reasoning-box glass-panel hover-lift">
-                <h3><span class="icon">🧠</span> Optimization Reasoning</h3>
+                <h3><span class="icon">🧠</span> Smart Recommendation</h3>
                 <div id="reasoning-content" class="rec-list">
-                    <p class="text-muted" style="margin-top: 20px; font-style: italic;">Run optimization to view AI reasoning...</p>
+                    <p class="text-muted" style="margin-top: 20px; font-style: italic;">Find a plan to see our recommendations...</p>
                 </div>
+            </div>
+        </div>
+
+        <!-- Campus Energy Control Actions Panel -->
+        <div class="control-actions-panel glass-panel glass-border-warning" style="margin-top: 25px;">
+            <h3><span class="icon">🎮</span> Automatic Actions in Progress</h3>
+            <div id="control-actions-content" class="rec-list" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 15px;">
+                <p class="text-muted text-center" style="grid-column: 1/-1; margin-top: 10px; font-style: italic;">Find a plan to unlock smart actions...</p>
             </div>
         </div>
     </div>
@@ -217,12 +280,12 @@
     <!-- ========== ANALYTICS TAB ========== -->
     <div id="analytics" class="tab-content transition-wrapper">
         <div class="dashboard-header">
-            <h2>Telemetry Archive</h2>
+            <h2>History & Savings</h2>
             <div class="analytics-controls" style="display: flex; gap: 10px;">
                 <select id="analytics-period" class="glass-select" onchange="loadAnalytics()">
-                    <option value="24">T-Minus 24h</option>
-                    <option value="168">T-Minus 7d</option>
-                    <option value="720">T-Minus 30d</option>
+                    <option value="24">Last 24 Hours</option>
+                    <option value="168">Last 7 Days</option>
+                    <option value="720">Last 30 Days</option>
                 </select>
                 <div class="export-dropdown" style="position: relative; display: inline-block;">
                     <button class="action-btn glow-btn blue hover-lift" onclick="exportReport('csv')">📥 CSV</button>
@@ -235,22 +298,22 @@
         <div class="analytics-grid">
             <div class="analytics-card glass-panel hover-lift">
                 <div class="icon eco">🌿</div>
-                <h4>Zero-Emission Yield</h4>
+                <h4>Clean Energy Used</h4>
                 <p class="metric neon-green" id="metric-renewable">-- <span class="unit">kWh</span></p>
             </div>
             <div class="analytics-card glass-panel hover-lift">
                 <div class="icon grid">🗼</div>
-                <h4>Grid Dependence</h4>
+                <h4>Power from Grid</h4>
                 <p class="metric neon-red" id="metric-grid">-- <span class="unit">kWh</span></p>
             </div>
             <div class="analytics-card glass-panel hover-lift">
                 <div class="icon economy">💰</div>
-                <h4>Fiscal Efficiency (Saved)</h4>
+                <h4>Money Saved</h4>
                 <p class="metric neon-orange" id="metric-cost">-- <span class="unit">₹</span></p>
             </div>
             <div class="analytics-card glass-panel hover-lift">
                 <div class="icon impact">🌍</div>
-                <h4>Carbon Negated</h4>
+                <h4>Pollution Prevented</h4>
                 <p class="metric neon-cyan" id="metric-emissions">-- <span class="unit">kg</span></p>
             </div>
         </div>
@@ -329,12 +392,12 @@
 
         <div class="analytics-charts-split">
             <div class="chart-container glass-panel hover-lift width-65">
-                <h3>Fiscal & Emission Vector</h3>
+                <h3>Cost and Emissions History</h3>
                 <div class="canvas-wrapper"><canvas id="analyticsChart"></canvas></div>
             </div>
 
             <div class="chart-container glass-panel hover-lift width-35">
-                <h3>Sourcing Ratio</h3>
+                <h3>Where My Power Came From</h3>
                 <div class="canvas-wrapper"><canvas id="energyDistributionChart"></canvas></div>
             </div>
         </div>
@@ -343,13 +406,13 @@
     <!-- ========== ALERTS TAB ========== -->
     <div id="alerts" class="tab-content transition-wrapper">
         <div class="dashboard-header">
-            <h2>Critical Notifications</h2>
+            <h2>Notifications</h2>
             <div class="alerts-controls">
                 <select onchange="loadAlerts(this.value)" id="alert-period" class="glass-select">
-                    <option value="24">Last 24h</option>
-                    <option value="168">Last 7d</option>
+                    <option value="24">Last 24 Hours</option>
+                    <option value="168">Last 7 Days</option>
                 </select>
-                <button class="action-btn glow-btn hover-lift" onclick="loadAlerts()">🔄 Sync</button>
+                <button class="action-btn glow-btn hover-lift" onclick="loadAlerts()">🔄 Refresh</button>
             </div>
         </div>
 

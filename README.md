@@ -1,105 +1,84 @@
-# Campus Hybrid Renewable Energy Management System
+# Campus Hybrid Renewable Energy Orchestration Platform (Virtual Power Plant)
 
-A comprehensive software platform for orchestrating solar, wind, battery storage, and grid power at educational campuses across Rajasthan and beyond.
+A comprehensive vendor-neutral software framework for orchestrating solar, wind, battery storage, and grid power at public-sector educational campuses across Rajasthan and beyond.
 
-## 🎯 Core Problem Definition
+## 🎯 Core Problem Background
 
-**Problem:** 
-Urban buildings and campuses use electricity from multiple sources (solar, wind, battery, grid), but they do not know the best way to distribute energy to reduce grid dependence and cost.
+Many public-sector campuses across Rajasthan consume substantial grid electricity even though solar irradiance and wind potential are highly favorable throughout most of the year. Separate pilot installations—like rooftop photovoltaic panels on one block or a small wind turbine near another—have demonstrated value in isolation. However, they operate independently, lack coordinated scheduling, and cannot guarantee stable power when weather fluctuates. As tariff subsidies taper and carbon-reduction mandates tighten, institutes must find practical ways to maximize on-site renewable generation while preserving supply reliability for critical labs and hostels. 
 
-**Goal of the System:**
-- Maximize renewable energy usage
-- Minimize grid electricity
-- Reduce cost
-- Reduce carbon emissions
+The crux of the challenge is **orchestration, not hardware procurement**. When the sun is at its peak, excess photovoltaic output sometimes exceeds immediate demand, while during cloudy afternoons or still evenings the turbine may produce little, forcing the campus to revert entirely to grid draw. Separate inverters, meters, and legacy control boxes provide fragmented read-outs that facilities staff inspect manually, often hours after relevant events.
 
-**System Definition:**
-An intelligent decision-support system for hybrid renewable energy optimization.
+Without a holistic view, administrators cannot determine when to schedule energy-intensive tasks, how to stagger loads, or whether to export surplus to the utility. Furthermore, campus management lacks clear evidence to justify additional renewable investments or report carbon savings credibly.
 
-## ✨ Solution Features
+## ✨ Expected Solution: The Software-Centric Intelligence Layer
 
-### 1. **Real-Time Orchestration**
-- Unified control of solar, wind, battery, and grid systems
-- Real-time sensor data aggregation
-- Dynamic optimization every 5-15 minutes
+Our platform introduces a modern, software-centric coordination layer to treat disparate solar, wind, battery storage, and grid imports as a single **Virtual Power Plant (VPP)**. By focusing entirely on an interoperable, vendor-agnostic software framework, we sidestep heavy capital expenditure while unlocking the full potential of hardware assets the institution already owns.
 
-### 2. **Predictive Analytics**
-- 24-hour generation forecasts (solar, wind)
-- Demand prediction using historical patterns
-- Surplus/deficit early warning
+> *A successful proof-of-concept demonstrating that thoughtful data modelling and optimisation can boost renewable utilisation, shrink electricity bills, and provide a replicable blueprint for other government campuses.*
 
-### 3. **Intelligent Optimization**
-- Genetic Algorithm-based resource allocation
-- Minimizes cost and grid dependence
-- Maximizes renewable self-consumption
-- Smart battery charging/discharging schedules
+### Core Orchestration Features
 
-### 4. **Actionable Dashboard**
-- Real-time energy flow visualization
-- System recommendations
-- Alert system for critical conditions
-- Performance metrics at a glance
+### 1. **Live Data Integration & Interoperability**
+- Vendor-neutral design stays agnostic to specific panel brands, turbine controllers, or battery chemistries.
+- Relies on open data interfaces and easily scripted adapters rather than proprietary lock-ins.
+- Ingests real-time sensor streams continuously.
 
-### 5. **Historical Analytics & Reporting**
-- Cost tracking and analysis
-- CO₂ emissions avoided calculation
-- Statutory compliance exports (CSV)
-- Trend analysis over days/months
+### 2. **Predictive Analytics & Forecasting**
+- Fuses sensor streams with short-term weather data.
+- Predicts dynamic generation curves (solar/wind) and campus demand curves.
 
-### 6. **Vendor-Neutral Design**
-- Adapts to any hardware configuration
-- Open data interfaces
-- Easily scripted adapters for new devices
-- No lock-in to specific brands
+### 3. **Intelligent Optimization (Genetic Algorithm)**
+- Issues real-time operational recommendations (optimal battery charging windows, load-shifting opportunities).
+- Minimises immediate grid costs and long-term carbon emissions.
+- Triggers dynamic charge/discharge cycles based on data-driven forecasts instead of fixed rules.
+
+### 4. **Intuitive Actionable Dashboard**
+- Specifically designed to remain usable by **non-specialist technicians** and facilities staff without training.
+- Highlights *actionable insights* rather than raw kilowatt data.
+- Allows rapid, simple menu-based adjustments for alert thresholds.
+- Exports historical analytics seamlessly for statutory green/compliance reporting.
 
 ## 📋 System Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                     FRONTEND DASHBOARD                      │
-│  (HTML5 + JavaScript + Chart.js)                            │
-│  - Real-time monitoring                                     │
-│  - Forecasts & optimization                                 │
-│  - Analytics & reporting                                    │
+│                     FACILITY DASHBOARD                      │
+│  (For Non-Specialist Staff: Actionable Insights)            │
+│  - Real-time VPP monitoring & Alerts                        │
+│  - Forecasts & statutory reporting                          │
 └────────────────────┬────────────────────────────────────────┘
                      │ REST API
 ┌────────────────────▼────────────────────────────────────────┐
-│                  BACKEND API (Python/Flask)                 │
+│             SOFTWARE INTELLIGENCE LAYER (Backend)           │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
 │  ┌──────────────────┐  ┌──────────────────────────────┐   │
-│  │ GA Optimization  │  │ Forecasting Module           │   │
-│  │ Engine           │  │ - Solar prediction           │   │
-│  │ - Resource       │  │ - Wind prediction            │   │
-│  │   allocation     │  │ - Demand forecasting         │   │
-│  │ - Cost          │  │                              │   │
-│  │   minimization   │  │                              │   │
+│  │ GA Optimization  │  │ Predictive Analytics         │   │
+│  │ Engine           │  │ - Weather fusion             │   │
+│  │ - VPP scheduling │  │ - Supply/Demand curves       │   │
+│  │ - Carbon/Cost min│  │                              │   │
 │  └──────────────────┘  └──────────────────────────────┘   │
 │                                                             │
 │  ┌──────────────────────────────────────────────────────┐ │
-│  │         SQLite Database                              │ │
-│  │  - Sensor readings                                   │ │
-│  │  - Optimization logs                                 │ │
-│  │  - Alerts                                            │ │
-│  │  - Historical data                                   │ │
+│  │         Vendor-Neutral Adapter Interface             │ │
+│  │  - Agnostic to panel brands / turbine controllers    │ │
+│  │  - Open data interfaces & JSON scraping              │ │
 │  └──────────────────────────────────────────────────────┘ │
 │                                                             │
-└─────────────────────────────────────────────────────────────┘
-         │           │          │
-         ▼           ▼          ▼
-    ┌────────┐  ┌─────────┐  ┌─────────┐
-    │ Solar  │  │ Wind    │  │Battery/ │
-    │Panel   │  │Turbine  │  │Grid     │
-    │Data    │  │Data     │  │Data     │
-    └────────┘  └─────────┘  └─────────┘
+└──────────────────┬──────────────────────┬───────────────────┘
+          ┌────────┴────────┐  ┌──────────┴──────┐
+          ▼                 ▼  ▼                 ▼
+ ┌───────────────┐ ┌───────────────┐ ┌───────────────┐
+ │ Legacy Solar  │ │ Isolated Wind │ │ Dumb Battery  │
+ │ Controllers   │ │ Turbines      │ │ Systems       │
+ └───────────────┘ └───────────────┘ └───────────────┘
 ```
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 - Python 3.8+
-- Node.js (optional, for development)
-- Modern web browser (Chrome, Firefox, Edge, Safari)
+- Modern web browser
 
 ### Installation
 
@@ -114,36 +93,32 @@ An intelligent decision-support system for hybrid renewable energy optimization.
    pip install -r requirements.txt
    ```
 
-3. **Start the backend server**
+3. **Start the backend intelligence layer**
    ```bash
    python server.py
    ```
    Server will run on `http://127.0.0.1:5000`
 
-4. **Open the frontend**
+4. **Launch the frontend dashboard**
    ```bash
    cd ../Frontend
-   # Open index.html in a web browser
-   # On Windows: start index.html
-   # On Mac: open index.html
    # Or use a local server:
-   # python -m http.server 8000
+   python -m http.server 8000
    # Then visit http://localhost:8000
    ```
+   *(Windows Users: Simply double-click `run_system.bat` from the root directory).*
 
-## 📊 Dashboard Tabs
+## 📊 VPP Dashboard Tabs
 
 ### 1. **Dashboard**
-- Real-time energy generation and consumption
-- System status indicators
-- Live energy flow chart
-- AI-generated recommendations
+- Actionable energy flow insights (not raw unreadable data)
+- System status and predictive deficit warnings
+- AI-generated recommendations for facilities staff
 
 ### 2. **24h Forecast**
-- Hour-by-hour solar generation forecast
-- Wind generation predictions
-- Demand forecast
-- Surplus/deficit analysis for optimal scheduling
+- Weather-fused hour-by-hour solar/wind generation forecasting
+- Demand curve prediction
+- Load-shifting early warnings
 
 ### 3. **Optimizer**
 - Manual optimization runs
